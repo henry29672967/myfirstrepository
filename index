@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<!-- saved from url=(0051)file:///C:/Users/d02/Downloads/crypto_passbook.html -->
+<html lang="zh-Hant"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>加密資產存摺</title>
+<link rel="preconnect" href="https://fonts.googleapis.com/">
+<link href="./index_files/css2" rel="stylesheet">
+<style>
+  :root{
+    --cover-green:#1f4d3d;
+    --cover-green-dark:#143628;
+    --gold:#c9a24a;
+    --gold-bright:#e6c878;
+    --page:#f6f1e3;
+    --page-line:#e1d6b8;
+    --ink:#2b2a25;
+    --ink-soft:#7a7565;
+    --btc:#f7931a;
+    --eth:#627eea;
+    --danger:#b3392c;
+    --good:#2f6b4f;
+    --radius:14px;
+    --serif:'Noto Serif TC', serif;
+    --sans:'Noto Sans TC', sans-serif;
+    --mono:'JetBrains Mono', monospace;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    min-height:100vh;
+    font-family:var(--sans);
+    background:
+      radial-gradient(circle at 20% -10%, rgba(255,255,255,0.05), transparent 40%),
+      linear-gradient(160deg,#27211b,#181410 70%);
+    color:var(--ink);
+    display:flex;
+    justify-content:center;
+    padding:32px 16px 60px;
+  }
+  .desk{ width:100%; max-width:760px; }
+  .passbook{
+    background:var(--page);
+    border-radius:var(--radius);
+    overflow:hidden;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .cover{
+    background:linear-gradient(135deg,var(--cover-green),var(--cover-green-dark));
+    padding:34px 36px 26px;
+    position:relative;
+    color:var(--gold-bright);
+    text-align:center;
+  }
+  .cover::after{
+    content:"";
+    position:absolute; inset:8px;
+    border:1px solid rgba(201,162,74,0.35);
+    border-radius:6px;
+    pointer-events:none;
+  }
+  .cover-glyphs{ font-size:15px; letter-spacing:10px; opacity:0.6; margin-bottom:6px; }
+  .cover-title{
+    font-family:var(--serif);
+    font-weight:700;
+    font-size:30px;
+    margin:0;
+    letter-spacing:4px;
+    text-shadow:0 1px 0 rgba(0,0,0,0.3);
+  }
+  .cover-sub{
+    margin:8px 0 0;
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:3px;
+    opacity:0.75;
+  }
+  .stub{ height:0; border-top:2px dashed rgba(201,162,74,0.5); margin:0 28px; }
+  .ledger{ padding:26px 28px 8px; }
+  .asset-row{
+    display:grid;
+    grid-template-columns:150px auto 1fr auto;
+    align-items:center;
+    gap:12px 14px;
+    padding:14px 4px;
+  }
+  .asset-head{ display:flex; align-items:center; gap:8px; font-family:var(--serif); font-weight:600; }
+  .asset-glyph{ font-size:18px; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0; }
+  .asset-glyph.btc{ background:var(--btc); }
+  .asset-glyph.eth{ background:var(--eth); }
+  .asset-name small{ display:block; font-family:var(--mono); font-size:10px; color:var(--ink-soft); letter-spacing:1px; font-weight:400; }
+
+  .mode-toggle{ display:inline-flex; border:1px solid var(--page-line); border-radius:20px; overflow:hidden; }
+  .mode-btn{ border:none; background:transparent; padding:6px 12px; font-family:var(--sans); font-size:12px; cursor:pointer; color:var(--ink-soft); }
+  .mode-btn.active{ color:#fff; }
+  .asset-row[data-coin="btc"] .mode-btn.active{ background:var(--btc); }
+  .asset-row[data-coin="eth"] .mode-btn.active{ background:var(--eth); }
+
+  .input-area input{
+    width:100%;
+    padding:8px 10px;
+    border:1px solid var(--page-line);
+    border-radius:8px;
+    font-family:var(--mono);
+    font-size:13px;
+    background:#fff;
+    color:var(--ink);
+  }
+  .input-area input:focus{ outline:2px solid var(--gold); outline-offset:1px; }
+
+  .query-btn{
+    border:none; border-radius:8px; padding:9px 16px;
+    font-family:var(--sans); font-weight:600; font-size:13px;
+    cursor:pointer; color:#fff; background:var(--ink);
+    white-space:nowrap;
+  }
+  .query-btn:disabled{ opacity:0.5; cursor:wait; }
+
+  .row-result{
+    grid-column:1 / -1;
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--ink-soft);
+    min-height:18px;
+    padding-left:38px;
+  }
+  .row-result.error{ color:var(--danger); }
+  .row-result.good{ color:var(--good); }
+
+  .row-divider{ height:1px; background:repeating-linear-gradient(to right, var(--page-line) 0 6px, transparent 6px 12px); margin:6px 0; }
+  .row-divider.thick{ height:0; border-top:3px double var(--gold); margin:18px 0 14px; }
+
+  .eyebrow{ font-family:var(--mono); font-size:11px; letter-spacing:3px; color:var(--ink-soft); text-transform:uppercase; margin:0 0 10px; }
+
+  .log-section{ margin-top:4px; }
+  .log-list{
+    max-height:220px; overflow-y:auto; display:flex; flex-direction:column;
+    border:1px solid var(--page-line); border-radius:8px;
+    background:repeating-linear-gradient(var(--page) 0 31px, #efe8d3 31px 32px);
+  }
+  .log-list:empty::before{
+    content:"尚無紀錄,請輸入地址或持有量後點擊「查詢並記帳」開始記錄。";
+    display:block; padding:16px; font-family:var(--mono); font-size:12px; color:var(--ink-soft);
+  }
+  .log-entry{
+    display:grid;
+    grid-template-columns:130px 40px 1fr 1fr 1fr;
+    gap:8px;
+    padding:7px 10px;
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--ink);
+    white-space:nowrap;
+    overflow:hidden;
+    animation:print-in 0.4s ease-out;
+  }
+  .log-entry.error{ color:var(--danger); grid-template-columns:130px 1fr; }
+  .log-entry .tag{ font-weight:700; }
+  .log-entry .tag.btc{ color:var(--btc); }
+  .log-entry .tag.eth{ color:var(--eth); }
+  @keyframes print-in{
+    from{ opacity:0; transform:translateY(-4px); clip-path:inset(0 100% 0 0); }
+    to{ opacity:1; transform:translateY(0); clip-path:inset(0 0 0 0); }
+  }
+
+  .totals{ margin-top:18px; padding-top:14px; border-top:3px double var(--gold); }
+  .totals-figures{ display:flex; gap:24px; flex-wrap:wrap; }
+  .totals-figures > div{ font-family:var(--mono); }
+  .totals-figures .cur{ display:block; font-size:11px; color:var(--ink-soft); letter-spacing:2px; }
+  .totals-figures span:last-child{ font-size:26px; font-weight:700; }
+  .meta-row{ display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:11.5px; color:var(--ink-soft); flex-wrap:wrap; gap:8px; }
+  .refresh-btn{ border:1px solid var(--page-line); background:#fff; border-radius:20px; padding:5px 12px; cursor:pointer; font-family:var(--mono); font-size:11.5px; color:var(--ink); }
+  .refresh-btn.spin{ animation:spin 0.8s linear infinite; display:inline-block; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .disclaimer{ font-size:11px; color:var(--ink-soft); line-height:1.6; margin:18px 0 0; padding-bottom:18px; }
+
+  .chart-section{ margin-top:4px; }
+  .chart-controls{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+  #chartCoinToggle .mode-btn[data-coin="btc"].active{ background:var(--btc); }
+  #chartCoinToggle .mode-btn[data-coin="eth"].active{ background:var(--eth); }
+  #chartRangeToggle .mode-btn.active{ background:var(--ink); }
+  .chart-stat{ display:flex; align-items:baseline; gap:10px; margin:0 2px 10px; min-height:26px; }
+  .chart-price{ font-family:var(--mono); font-size:20px; font-weight:700; }
+  .chart-change{ font-family:var(--mono); font-size:13px; font-weight:600; }
+  .chart-change.up{ color:var(--good); }
+  .chart-change.down{ color:var(--danger); }
+  .chart-wrap{ position:relative; border:1px solid var(--page-line); border-radius:8px; background:#fff; padding:8px 8px 2px; }
+  #priceChart{ width:100%; height:220px; display:block; }
+  .chart-status{ font-family:var(--mono); font-size:11.5px; color:var(--ink-soft); padding:6px 4px 0; min-height:16px; }
+  .chart-status.error{ color:var(--danger); }
+
+  @media (max-width:600px){
+    .asset-row{ grid-template-columns:1fr; }
+    .row-result{ padding-left:0; }
+    .log-entry{ grid-template-columns:96px 32px 1fr 1fr 1fr; font-size:10px; }
+    .log-entry.error{ grid-template-columns:96px 1fr; }
+    #priceChart{ height:180px; }
+    .chart-wrap{ padding:6px 4px 2px; }
+  }
+</style>
+</head>
+<body>
+<div class="desk">
+  <div class="passbook" role="application" aria-label="加密資產存摺">
+    <header class="cover">
+      <div class="cover-glyphs" aria-hidden="true">Ƀ &nbsp; Ξ</div>
+      <h1 class="cover-title">加密資產 存摺</h1>
+      <p class="cover-sub">CRYPTO NET WORTH PASSBOOK</p>
+    </header>
+    <div class="stub"></div>
+
+    <main class="ledger">
+
+      <section class="asset-row" data-coin="btc">
+        <div class="asset-head">
+          <span class="asset-glyph btc">Ƀ</span>
+          <span class="asset-name">Bitcoin<small>BTC</small></span>
+        </div>
+        <div class="mode-toggle" id="btcModeToggle">
+          <button class="mode-btn active" data-mode="address">地址查詢</button>
+          <button class="mode-btn" data-mode="manual">手動輸入</button>
+        </div>
+        <div class="input-area">
+          <input type="text" id="btcAddrInput" placeholder="輸入 BTC 錢包地址(例如 bc1...)">
+          <input type="number" id="btcManualInput" placeholder="持有數量(BTC)" step="0.00000001" min="0" style="display:none">
+        </div>
+        <button class="query-btn" id="btcQueryBtn">查詢並記帳</button>
+        <div class="row-result" id="btcResult"></div>
+      </section>
+
+      <div class="row-divider"></div>
+
+      <section class="asset-row" data-coin="eth">
+        <div class="asset-head">
+          <span class="asset-glyph eth">Ξ</span>
+          <span class="asset-name">Ethereum<small>ETH</small></span>
+        </div>
+        <div class="mode-toggle" id="ethModeToggle">
+          <button class="mode-btn active" data-mode="address">地址查詢</button>
+          <button class="mode-btn" data-mode="manual">手動輸入</button>
+        </div>
+        <div class="input-area">
+          <input type="text" id="ethAddrInput" placeholder="輸入 ETH 錢包地址(例如 0x...)">
+          <input type="number" id="ethManualInput" placeholder="持有數量(ETH)" step="0.000001" min="0" style="display:none">
+        </div>
+        <button class="query-btn" id="ethQueryBtn">查詢並記帳</button>
+        <div class="row-result" id="ethResult"></div>
+      </section>
+
+      <div class="row-divider thick"></div>
+
+      <div class="log-section">
+        <p class="eyebrow">交易明細</p>
+        <div class="log-list" id="logList"></div>
+      </div>
+
+      <div class="totals" aria-live="polite">
+        <p class="eyebrow">目前淨值合計</p>
+        <div class="totals-figures">
+          <div><span class="cur">USD</span><span id="totalUsd">$0.00</span></div>
+          <div><span class="cur">TWD</span><span id="totalTwd">NT$0</span></div>
+        </div>
+        <div class="meta-row">
+          <span id="lastUpdated">尚未查詢</span>
+          <button id="refreshBtn" class="refresh-btn" title="重新整理價格與餘額">⟳ 全部更新</button>
+        </div>
+      </div>
+
+      <div class="row-divider thick"></div>
+
+      <div class="chart-section">
+        <p class="eyebrow">附頁 · 走勢圖</p>
+        <div class="chart-controls">
+          <div class="mode-toggle" id="chartCoinToggle">
+            <button class="mode-btn active" data-coin="btc">BTC</button>
+            <button class="mode-btn" data-coin="eth">ETH</button>
+          </div>
+          <div class="mode-toggle" id="chartRangeToggle">
+            <button class="mode-btn" data-days="7">7天</button>
+            <button class="mode-btn active" data-days="30">30天</button>
+            <button class="mode-btn" data-days="90">90天</button>
+            <button class="mode-btn" data-days="365">1年</button>
+          </div>
+        </div>
+        <div class="chart-stat" id="chartStat"></div>
+        <div class="chart-wrap">
+          <canvas id="priceChart"></canvas>
+        </div>
+        <div class="chart-status error" id="chartStatus">Failed to fetch</div>
+      </div>
+
+      <footer class="disclaimer">
+        資料來源:即時市價與歷史走勢取自 CoinGecko;錢包餘額取自 BlockCypher 公開區塊鏈查詢服務,僅反映單一地址的鏈上餘額,不包含交易所或其他帳戶資產。本工具僅供個人記錄參考,並非投資建議。
+      </footer>
+    </main>
+  </div>
+</div>
+
+<script>
+  const COINGECKO_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd,twd';
+  const BTC_REGEX = /^(bc1[a-z0-9]{25,62}|[13][a-zA-Z0-9]{25,34})$/;
+  const ETH_REGEX = /^0x[a-fA-F0-9]{40}$/;
+
+  const state = {
+    btc: { mode:'address' },
+    eth: { mode:'address' }
+  };
+
+  const el = (id) => document.getElementById(id);
+
+  function setupRow(coin){
+    const toggle = el(`${coin}ModeToggle`);
+    const addrInput = el(`${coin}AddrInput`);
+    const manualInput = el(`${coin}ManualInput`);
+    toggle.querySelectorAll('.mode-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        toggle.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        state[coin].mode = btn.dataset.mode;
+        if(btn.dataset.mode === 'address'){
+          addrInput.style.display='';
+          manualInput.style.display='none';
+        } else {
+          addrInput.style.display='none';
+          manualInput.style.display='';
+        }
+        persist();
+      });
+    });
+    el(`${coin}QueryBtn`).addEventListener('click', ()=>queryCoin(coin));
+    [addrInput, manualInput].forEach(inp=>{
+      inp.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') queryCoin(coin); });
+    });
+  }
+
+  function fmtUsd(n){
+    return new Intl.NumberFormat('en-US', {style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2}).format(n);
+  }
+  function fmtTwd(n){
+    return new Intl.NumberFormat('zh-TW', {style:'currency', currency:'TWD', maximumFractionDigits:0}).format(n);
+  }
+  function fmtQty(n, decimals){
+    let s = n.toFixed(decimals);
+    s = s.replace(/0+$/,'').replace(/\.$/, '');
+    return s === '' ? '0' : s;
+  }
+
+  async function fetchPrices(){
+    const res = await fetch(COINGECKO_URL);
+    if(!res.ok) throw new Error('價格服務暫時無法使用,請稍後再試');
+    const data = await res.json();
+    if(!data.bitcoin || !data.ethereum) throw new Error('價格資料格式異常');
+    return data;
+  }
+
+  async function fetchBtcBalance(address){
+    const url = `https://blockstream.info/api/address/${address}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('查詢地址失敗,請確認地址是否正確');
+    const data = await res.json();
+    if(!data.chain_stats) throw new Error('查無此地址的鏈上資料');
+    const confirmed = (data.chain_stats.funded_txo_sum||0) - (data.chain_stats.spent_txo_sum||0);
+    const unconfirmed = data.mempool_stats
+      ? (data.mempool_stats.funded_txo_sum||0) - (data.mempool_stats.spent_txo_sum||0)
+      : 0;
+    return (confirmed + unconfirmed) / 1e8;
+  }
+
+  const ETH_RPC_ENDPOINTS = [
+    'https://ethereum-rpc.publicnode.com',
+    'https://eth.llamarpc.com',
+    'https://cloudflare-eth.com'
+  ];
+
+  async function fetchEthBalance(address){
+    let lastErr;
+    for(const url of ETH_RPC_ENDPOINTS){
+      try{
+        const res = await fetch(url, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ jsonrpc:'2.0', method:'eth_getBalance', params:[address,'latest'], id:1 })
+        });
+        if(!res.ok) throw new Error('節點回應錯誤');
+        const data = await res.json();
+        if(data.error) throw new Error(data.error.message || 'RPC 錯誤');
+        if(!data.result) throw new Error('查無此地址資料');
+        return Number(BigInt(data.result)) / 1e18;
+      } catch(e){
+        lastErr = e;
+        continue;
+      }
+    }
+    throw new Error('ETH 餘額查詢失敗,請稍後再試');
+  }
+
+  async function fetchChainBalance(chain, address){
+    return chain === 'btc' ? await fetchBtcBalance(address) : await fetchEthBalance(address);
+  }
+
+  function setLoading(coin, loading){
+    const btn = el(`${coin}QueryBtn`);
+    btn.disabled = loading;
+    btn.textContent = loading ? '查詢中…' : '查詢並記帳';
+  }
+
+  function showRowResult(coin, text, type){
+    const node = el(`${coin}Result`);
+    node.textContent = text;
+    node.className = 'row-result' + (type ? ' '+type : '');
+  }
+
+  function addLogEntry({coin, qty, priceUsd, subtotalUsd, error}){
+    const list = el('logList');
+    const entry = document.createElement('div');
+    const time = new Date().toLocaleString('zh-TW', {hour12:false});
+    if(error){
+      entry.className = 'log-entry error';
+      entry.innerHTML = `<span>${time}</span><span>${coin.toUpperCase()} 查詢失敗:${error}</span>`;
+    } else {
+      entry.className = 'log-entry';
+      const decimals = coin === 'btc' ? 8 : 6;
+      entry.innerHTML = `
+        <span>${time}</span>
+        <span class="tag ${coin}">${coin.toUpperCase()}</span>
+        <span>${fmtQty(qty, decimals)} 顆</span>
+        <span>@ ${fmtUsd(priceUsd)}</span>
+        <span>= ${fmtUsd(subtotalUsd)}</span>
+      `;
+    }
+    list.insertBefore(entry, list.firstChild);
+    list.scrollTop = 0;
+  }
+
+  function updateTotals(){
+    const btcUsd = (state.btc.qty||0) * (state.btc.priceUsd||0);
+    const ethUsd = (state.eth.qty||0) * (state.eth.priceUsd||0);
+    const btcTwd = (state.btc.qty||0) * (state.btc.priceTwd||0);
+    const ethTwd = (state.eth.qty||0) * (state.eth.priceTwd||0);
+    el('totalUsd').textContent = fmtUsd(btcUsd+ethUsd);
+    el('totalTwd').textContent = fmtTwd(btcTwd+ethTwd);
+    el('lastUpdated').textContent = '最後更新:' + new Date().toLocaleTimeString('zh-TW',{hour12:false});
+  }
+
+  async function queryCoin(coin){
+    setLoading(coin,true);
+    showRowResult(coin, '查詢中…');
+    try{
+      let qty;
+      if(state[coin].mode === 'address'){
+        const addr = el(`${coin}AddrInput`).value.trim();
+        if(!addr) throw new Error('請輸入錢包地址');
+        const regex = coin === 'btc' ? BTC_REGEX : ETH_REGEX;
+        if(!regex.test(addr)) throw new Error(`${coin.toUpperCase()} 地址格式看起來不正確`);
+        qty = await fetchChainBalance(coin, addr);
+        state[coin].address = addr;
+      } else {
+        const raw = el(`${coin}ManualInput`).value;
+        const val = parseFloat(raw);
+        if(isNaN(val) || val < 0) throw new Error('請輸入有效的持有數量');
+        qty = val;
+        state[coin].manualQty = val;
+      }
+      const prices = await fetchPrices();
+      const key = coin === 'btc' ? 'bitcoin' : 'ethereum';
+      const priceUsd = prices[key].usd;
+      const priceTwd = prices[key].twd;
+      state[coin].qty = qty;
+      state[coin].priceUsd = priceUsd;
+      state[coin].priceTwd = priceTwd;
+      const decimals = coin === 'btc' ? 8 : 6;
+      showRowResult(coin, `持有 ${fmtQty(qty,decimals)} 顆 · 現價 ${fmtUsd(priceUsd)} · 小計 ${fmtUsd(qty*priceUsd)}`, 'good');
+      addLogEntry({coin, qty, priceUsd, subtotalUsd: qty*priceUsd});
+      updateTotals();
+      persist();
+    } catch(err){
+      showRowResult(coin, err.message, 'error');
+      addLogEntry({coin, error: err.message});
+    } finally {
+      setLoading(coin,false);
+    }
+  }
+
+  async function persist(){
+    try{
+      const payload = {
+        btc: { mode:state.btc.mode, address:state.btc.address||'', manualQty: state.btc.manualQty ?? '' },
+        eth: { mode:state.eth.mode, address:state.eth.address||'', manualQty: state.eth.manualQty ?? '' }
+      };
+      await window.storage.set('wallet-settings', JSON.stringify(payload), false);
+    } catch(e){
+      console.error('儲存設定失敗', e);
+    }
+  }
+
+  async function restore(){
+    try{
+      const res = await window.storage.get('wallet-settings');
+      if(!res) return;
+      const saved = JSON.parse(res.value);
+      ['btc','eth'].forEach(coin=>{
+        const s = saved[coin];
+        if(!s) return;
+        if(s.address) el(`${coin}AddrInput`).value = s.address;
+        if(s.manualQty !== '' && s.manualQty !== undefined && s.manualQty !== null) el(`${coin}ManualInput`).value = s.manualQty;
+        if(s.mode === 'manual'){
+          el(`${coin}ModeToggle`).querySelectorAll('.mode-btn').forEach(b=>{
+            b.classList.toggle('active', b.dataset.mode === 'manual');
+          });
+          el(`${coin}AddrInput`).style.display = 'none';
+          el(`${coin}ManualInput`).style.display = '';
+          state[coin].mode = 'manual';
+        }
+      });
+    } catch(e){
+      // 尚無已儲存設定,屬正常狀況,不需處理
+    }
+  }
+
+  async function refreshAll(){
+    const btn = el('refreshBtn');
+    btn.classList.add('spin');
+    try{
+      await Promise.all(['btc','eth'].map(c=>{
+        const hasAddr = el(`${c}AddrInput`).value.trim();
+        const hasManual = el(`${c}ManualInput`).value;
+        if(state[c].mode === 'address' && !hasAddr) return Promise.resolve();
+        if(state[c].mode === 'manual' && !hasManual) return Promise.resolve();
+        return queryCoin(c);
+      }));
+    } finally {
+      btn.classList.remove('spin');
+    }
+  }
+
+  function hexToRgba(hex, alpha){
+    const h = hex.replace('#','');
+    const r = parseInt(h.substring(0,2),16);
+    const g = parseInt(h.substring(2,4),16);
+    const b = parseInt(h.substring(4,6),16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  function formatCompact(n){
+    if(Math.abs(n) >= 1000) return '$' + (n/1000).toFixed(1) + 'k';
+    return '$' + n.toFixed(n < 10 ? 2 : 0);
+  }
+
+  const chartState = { coin:'btc', days:30, data:null };
+
+  async function fetchHistory(coin, days){
+    const id = coin === 'btc' ? 'bitcoin' : 'ethereum';
+    const url = `https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=${days}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('走勢圖資料載入失敗,請稍後再試');
+    const data = await res.json();
+    if(!Array.isArray(data.prices) || data.prices.length < 2) throw new Error('走勢圖資料不足');
+    return data.prices;
+  }
+
+  function resizeCanvasForDPR(canvas, cssHeight){
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    canvas.height = Math.round(cssHeight * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, width: rect.width, height: cssHeight };
+  }
+
+  function drawChart(prices, accent){
+    const canvas = el('priceChart');
+    const { ctx, width, height } = resizeCanvasForDPR(canvas, canvas.clientHeight || 220);
+    ctx.clearRect(0,0,width,height);
+
+    const padding = { top:16, right:12, bottom:24, left:56 };
+    const plotW = width - padding.left - padding.right;
+    const plotH = height - padding.top - padding.bottom;
+
+    const values = prices.map(p=>p[1]);
+    const times = prices.map(p=>p[0]);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = (max - min) || (max * 0.01) || 1;
+
+    ctx.strokeStyle = 'rgba(43,42,37,0.12)';
+    ctx.lineWidth = 1;
+    ctx.font = '10px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#7a7565';
+
+    const gridCount = 4;
+    for(let i=0;i<=gridCount;i++){
+      const y = padding.top + plotH * (i/gridCount);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(width - padding.right, y);
+      ctx.stroke();
+      const val = max - (range * (i/gridCount));
+      ctx.fillText(formatCompact(val), 2, y + 3);
+    }
+
+    const xIdxs = [0, Math.floor((prices.length-1)/2), prices.length-1];
+    xIdxs.forEach(idx=>{
+      const x = padding.left + plotW * (idx/(prices.length-1));
+      const d = new Date(times[idx]);
+      const label = d.toLocaleDateString('zh-TW', {month:'numeric', day:'numeric'});
+      const tx = Math.min(Math.max(x-14, padding.left), width - padding.right - 28);
+      ctx.fillText(label, tx, height-6);
+    });
+
+    const pointAt = (i)=>{
+      const x = padding.left + plotW * (i/(prices.length-1));
+      const y = padding.top + plotH * (1 - (values[i]-min)/range);
+      return [x,y];
+    };
+
+    const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top+plotH);
+    grad.addColorStop(0, hexToRgba(accent, 0.28));
+    grad.addColorStop(1, hexToRgba(accent, 0));
+
+    ctx.beginPath();
+    prices.forEach((_,i)=>{
+      const [x,y] = pointAt(i);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.lineTo(padding.left+plotW, padding.top+plotH);
+    ctx.lineTo(padding.left, padding.top+plotH);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    ctx.beginPath();
+    prices.forEach((_,i)=>{
+      const [x,y] = pointAt(i);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    const [lx,ly] = pointAt(prices.length-1);
+    ctx.beginPath();
+    ctx.arc(lx,ly,4,0,Math.PI*2);
+    ctx.fillStyle = '#c9a24a';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  function renderChartStat(prices){
+    const first = prices[0][1];
+    const last = prices[prices.length-1][1];
+    const change = ((last-first)/first) * 100;
+    const sign = change >= 0 ? '+' : '';
+    el('chartStat').innerHTML = `
+      <span class="chart-price">${fmtUsd(last)}</span>
+      <span class="chart-change ${change>=0?'up':'down'}">${sign}${change.toFixed(2)}%</span>
+    `;
+  }
+
+  async function loadChart(){
+    const statusEl = el('chartStatus');
+    statusEl.textContent = '載入中…';
+    statusEl.className = 'chart-status';
+    try{
+      const prices = await fetchHistory(chartState.coin, chartState.days);
+      chartState.data = prices;
+      const accent = chartState.coin === 'btc' ? '#f7931a' : '#627eea';
+      drawChart(prices, accent);
+      renderChartStat(prices);
+      statusEl.textContent = '';
+    } catch(err){
+      statusEl.textContent = err.message;
+      statusEl.className = 'chart-status error';
+    }
+  }
+
+  function setupChartControls(){
+    el('chartCoinToggle').querySelectorAll('.mode-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        el('chartCoinToggle').querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        chartState.coin = btn.dataset.coin;
+        loadChart();
+      });
+    });
+    el('chartRangeToggle').querySelectorAll('.mode-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        el('chartRangeToggle').querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        chartState.days = parseInt(btn.dataset.days, 10);
+        loadChart();
+      });
+    });
+    window.addEventListener('resize', ()=>{
+      if(chartState.data){
+        const accent = chartState.coin === 'btc' ? '#f7931a' : '#627eea';
+        drawChart(chartState.data, accent);
+      }
+    });
+  }
+
+  ['btc','eth'].forEach(setupRow);
+  el('refreshBtn').addEventListener('click', refreshAll);
+  restore();
+  setupChartControls();
+  loadChart();
+</script>
+
+
+</body></html>
