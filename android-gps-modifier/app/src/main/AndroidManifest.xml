@@ -30,6 +30,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Google Maps API Key (由 build.gradle 從 local.properties 注入) -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
+
         <!-- Mock 位置前景服務 -->
         <service
             android:name=".MockLocationService"

@@ -1,6 +1,15 @@
+import java.util.Properties
+
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+}
+
+// 從專案根目錄的 local.properties 讀取 API Key
+def localProps = new Properties()
+def localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream { localProps.load(it) }
 }
 
 android {
@@ -13,6 +22,9 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
+
+        // 將 Key 注入 Manifest 的 ${MAPS_API_KEY} 佔位符
+        manifestPlaceholders["MAPS_API_KEY"] = localProps.getProperty("MAPS_API_KEY", "")
     }
 
     buildTypes {
