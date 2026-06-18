@@ -1,19 +1,20 @@
 package com.example.gpsmock
 
 import android.Manifest
+import android.app.AppOpsManager
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
-import android.net.Uri
-import android.os.Bundle
+import android.os.Build
+import android.os.Process
 import android.provider.Settings
-import android.text.InputType
-import android.view.inputmethod.EditorInfo
+import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import android.text.InputType
+import android.view.inputmethod.EditorInfo
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.gpsmock.databinding.ActivityMainBinding
@@ -23,15 +24,31 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.chip.Chip
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var binding: ActivityMainBinding
     private var googleMap: GoogleMap? = null
-    private var selectedLatLng: LatLng = LatLng(25.0330, 121.5654) // 預設台北 101
+    private var selectedLatLng = LatLng(25.0330, 121.5654)
 
     companion object {
-        private const val REQUEST_LOCATION_PERMISSION = 100
+        private const val PERM_REQUEST = 100
+
+        // 台灣常用地標
+        private val PRESETS = listOf(
+            Triple("台北101",    25.033611,  121.565000),
+            Triple("台北車站",   25.047924,  121.517081),
+            Triple("桃園機場",   25.077732,  121.232822),
+            Triple("台中火車站", 24.136502,  120.685547),
+            Triple("高雄車站",   22.639017,  120.302017),
+            Triple("花蓮市區",   23.991700,  121.601600),
+            Triple("日月潭",     23.865000,  120.917000),
+            Triple("阿里山",     23.508000,  120.804000),
+            Triple("墾丁",       21.946000,  120.814000),
+            Triple("台南安平",   22.994000,  120.161000)
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,6 +57,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         setContentView(binding.root)
 
         setupMapFragment()
+        setupPresetChips()
         setupInputFields()
         setupButtons()
         updateStatusUI()
@@ -51,7 +69,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         updateStatusUI()
     }
 
-    // ── 地圖 ──────────────────────────────────────────────────────────────
+    // ── 地圖 ────────────────────────────────────────────────────────────────
     private fun setupMapFragment() {
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map_fragment) as SupportMapFragment
@@ -60,22 +78,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onMapReady(map: GoogleMap) {
         googleMap = map
-        map.uiSettings.apply {
-            isZoomControlsEnabled = true
-            isCompassEnabled = true
-            isMyLocationButtonEnabled = false
-        }
-        // 點擊地圖選點
+        map.uiSettings.isZoomControlsEnabled = true
+        map.uiSettings.isCompassEnabled = true
+
         map.setOnMapClickListener { latLng ->
             selectedLatLng = latLng
-            binding.etLatitude.setText(String.format("%.6f", latLng.latitude))
-            binding.etLongitude.setText(String.format("%.6f", latLng.longitude))
+            fillCoordFields(latLng.latitude, latLng.longitude)
             placeMarker(latLng)
         }
-        moveCamera(selectedLatLng, zoom = 15f)
+
+        fillCoordFields(selectedLatLng.latitude, selectedLatLng.longitude)
+        moveCamera(selectedLatLng, zoom = 14f)
         placeMarker(selectedLatLng)
-        binding.etLatitude.setText(String.format("%.6f", selectedLatLng.latitude))
-        binding.etLongitude.setText(String.format("%.6f", selectedLatLng.longitude))
     }
 
     private fun placeMarker(latLng: LatLng) {
@@ -85,63 +99,79 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    private fun moveCamera(latLng: LatLng, zoom: Float = 15f) {
+    private fun moveCamera(latLng: LatLng, zoom: Float = 14f) {
         googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, zoom))
     }
 
-    // ── 輸入框 ─────────────────────────────────────────────────────────────
-    private fun setupInputFields() {
-        // 按 Enter 後觸發地圖更新
-        binding.etLongitude.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
-                applyInputToMap()
-                true
-            } else false
+    // ── 快速地標 Chip ────────────────────────────────────────────────────────
+    private fun setupPresetChips() {
+        val dp8 = (8 * resources.displayMetrics.density).toInt()
+        PRESETS.forEach { (name, lat, lng) ->
+            val chip = Chip(this).apply {
+                text = name
+                isClickable = true
+                isCheckable = false
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).also { it.marginEnd = dp8 }
+            }
+            chip.setOnClickListener {
+                selectedLatLng = LatLng(lat, lng)
+                fillCoordFields(lat, lng)
+                placeMarker(selectedLatLng)
+                moveCamera(selectedLatLng, zoom = 14f)
+            }
+            binding.llPresets.addView(chip)
         }
+    }
+
+    // ── 輸入框 ───────────────────────────────────────────────────────────────
+    private fun setupInputFields() {
         binding.etLatitude.inputType =
             InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED
         binding.etLongitude.inputType =
             InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED
+
+        binding.etLongitude.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) { applyInputToMap(); true } else false
+        }
     }
 
-    private fun applyInputToMap() {
+    private fun fillCoordFields(lat: Double, lng: Double) {
+        binding.etLatitude.setText(String.format("%.6f", lat))
+        binding.etLongitude.setText(String.format("%.6f", lng))
+    }
+
+    private fun applyInputToMap(): Boolean {
         val lat = binding.etLatitude.text.toString().toDoubleOrNull()
         val lng = binding.etLongitude.text.toString().toDoubleOrNull()
         if (lat == null || lng == null || lat !in -90.0..90.0 || lng !in -180.0..180.0) {
-            Toast.makeText(this, "座標格式錯誤，請輸入有效的緯度 (-90~90) 和經度 (-180~180)", Toast.LENGTH_LONG).show()
-            return
+            Toast.makeText(this, "座標格式錯誤（緯度 -90~90，經度 -180~180）", Toast.LENGTH_LONG).show()
+            return false
         }
         selectedLatLng = LatLng(lat, lng)
         placeMarker(selectedLatLng)
         moveCamera(selectedLatLng)
+        return true
     }
 
-    // ── 按鈕 ────────────────────────────────────────────────────────────────
+    // ── 按鈕 ─────────────────────────────────────────────────────────────────
     private fun setupButtons() {
-        // 從輸入框搜尋並移動地圖標記
         binding.btnApply.setOnClickListener { applyInputToMap() }
 
-        // 啟動 Mock
         binding.btnStart.setOnClickListener {
-            if (!isMockLocationEnabled()) {
-                showMockLocationSettingDialog()
-                return@setOnClickListener
-            }
+            if (!isMockLocationEnabled()) { showMockSettingDialog(); return@setOnClickListener }
             val lat = binding.etLatitude.text.toString().toDoubleOrNull()
             val lng = binding.etLongitude.text.toString().toDoubleOrNull()
             if (lat == null || lng == null) {
                 Toast.makeText(this, "請先輸入有效座標", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val alt = binding.etAltitude.text.toString().toDoubleOrNull() ?: 10.0
-            val acc = binding.etAccuracy.text.toString().toFloatOrNull() ?: 3.0f
-            val spd = binding.etSpeed.text.toString().toFloatOrNull() ?: 0.0f
-
-            startMockService(lat, lng, alt, acc, spd)
+            startMockService(lat, lng, readAlt(), readAcc(), readSpd())
             updateStatusUI()
         }
 
-        // 更新座標 (服務已在執行時)
         binding.btnUpdate.setOnClickListener {
             val lat = binding.etLatitude.text.toString().toDoubleOrNull()
             val lng = binding.etLongitude.text.toString().toDoubleOrNull()
@@ -149,27 +179,25 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 Toast.makeText(this, "請先輸入有效座標", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val alt = binding.etAltitude.text.toString().toDoubleOrNull() ?: 10.0
-            val acc = binding.etAccuracy.text.toString().toFloatOrNull() ?: 3.0f
-            val spd = binding.etSpeed.text.toString().toFloatOrNull() ?: 0.0f
-
-            updateMockService(lat, lng, alt, acc, spd)
+            updateMockService(lat, lng, readAlt(), readAcc(), readSpd())
+            placeMarker(LatLng(lat, lng))
+            moveCamera(LatLng(lat, lng))
             Toast.makeText(this, "座標已更新", Toast.LENGTH_SHORT).show()
         }
 
-        // 停止 Mock
         binding.btnStop.setOnClickListener {
             stopMockService()
             updateStatusUI()
         }
 
-        // 前往系統開發者選項
-        binding.btnDevOptions.setOnClickListener {
-            openDeveloperOptions()
-        }
+        binding.btnDevOptions.setOnClickListener { openDeveloperOptions() }
     }
 
-    // ── Service 控制 ────────────────────────────────────────────────────────
+    private fun readAlt() = binding.etAltitude.text.toString().toDoubleOrNull() ?: 10.0
+    private fun readAcc() = binding.etAccuracy.text.toString().toFloatOrNull() ?: 3.0f
+    private fun readSpd() = binding.etSpeed.text.toString().toFloatOrNull() ?: 0.0f
+
+    // ── Service 控制 ─────────────────────────────────────────────────────────
     private fun startMockService(lat: Double, lng: Double, alt: Double, acc: Float, spd: Float) {
         Intent(this, MockLocationService::class.java).apply {
             action = MockLocationService.ACTION_START
@@ -190,16 +218,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             putExtra(MockLocationService.EXTRA_ACCURACY, acc)
             putExtra(MockLocationService.EXTRA_SPEED, spd)
         }.also { startService(it) }
-        // 同步地圖
-        selectedLatLng = LatLng(lat, lng)
-        placeMarker(selectedLatLng)
-        moveCamera(selectedLatLng)
     }
 
     private fun stopMockService() {
-        Intent(this, MockLocationService::class.java).apply {
+        startService(Intent(this, MockLocationService::class.java).apply {
             action = MockLocationService.ACTION_STOP
-        }.also { startService(it) }
+        })
     }
 
     // ── UI 狀態 ──────────────────────────────────────────────────────────────
@@ -214,37 +238,28 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         binding.btnStop.isEnabled = running
     }
 
-    // ── Mock 位置檢查 ─────────────────────────────────────────────────────────
+    // ── Mock 位置權限檢查 ─────────────────────────────────────────────────────
     private fun isMockLocationEnabled(): Boolean {
         return try {
-            // API 23+ 用開發者選項「模擬位置應用程式」白名單
-            val appOpsManager = getSystemService(APP_OPS_SERVICE) as android.app.AppOpsManager
-            val mode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                appOpsManager.unsafeCheckOp(
-                    android.app.AppOpsManager.OPSTR_MOCK_LOCATION,
-                    android.os.Process.myUid(),
-                    packageName
-                )
+            val opsManager = getSystemService(APP_OPS_SERVICE) as AppOpsManager
+            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                opsManager.unsafeCheckOp(AppOpsManager.OPSTR_MOCK_LOCATION, Process.myUid(), packageName)
             } else {
                 @Suppress("DEPRECATION")
-                appOpsManager.checkOp(
-                    android.app.AppOpsManager.OPSTR_MOCK_LOCATION,
-                    android.os.Process.myUid(),
-                    packageName
-                )
+                opsManager.checkOp(AppOpsManager.OPSTR_MOCK_LOCATION, Process.myUid(), packageName)
             }
-            mode == android.app.AppOpsManager.MODE_ALLOWED
+            mode == AppOpsManager.MODE_ALLOWED
         } catch (e: Exception) {
             false
         }
     }
 
-    private fun showMockLocationSettingDialog() {
+    private fun showMockSettingDialog() {
         AlertDialog.Builder(this)
-            .setTitle("需要設定模擬位置")
+            .setTitle("需要開啟模擬位置權限")
             .setMessage(
-                "請至「開發者選項」→「選取模擬位置應用程式」，\n" +
-                "選擇本 App（GPS座標修改器）後回來重試。"
+                "請至：\n設定 → 開發人員選項 → 選取模擬位置應用程式\n" +
+                "→ 選擇「GPS座標修改器」，再回來按「開始」。"
             )
             .setPositiveButton("前往設定") { _, _ -> openDeveloperOptions() }
             .setNegativeButton("取消", null)
@@ -255,21 +270,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         try {
             startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
         } catch (e: Exception) {
-            Toast.makeText(this, "無法開啟開發者選項，請手動前往「設定 → 開發人員選項」", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "請手動前往「設定 → 開發人員選項」", Toast.LENGTH_LONG).show()
         }
     }
 
-    // ── 權限 ───────────────────────────────────────────────────────────────
+    // ── 位置權限 ──────────────────────────────────────────────────────────────
     private fun checkPermissions() {
-        val perms = arrayOf(
+        val missing = arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION
-        )
-        val missing = perms.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
+        ).filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
+
         if (missing.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, missing.toTypedArray(), REQUEST_LOCATION_PERMISSION)
+            ActivityCompat.requestPermissions(this, missing.toTypedArray(), PERM_REQUEST)
         }
     }
 
@@ -277,10 +290,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_LOCATION_PERMISSION) {
-            if (grantResults.any { it != PackageManager.PERMISSION_GRANTED }) {
-                Toast.makeText(this, "需要位置權限才能使用本 App", Toast.LENGTH_LONG).show()
-            }
+        if (requestCode == PERM_REQUEST && grantResults.any { it != PackageManager.PERMISSION_GRANTED }) {
+            Toast.makeText(this, "需要位置權限才能使用本 App", Toast.LENGTH_LONG).show()
         }
     }
 }

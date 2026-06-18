@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- GPS 定位圖示：圓形外環 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,22 C39.6,22 28,33.6 28,48 C28,63 54,86 54,86 C54,86 80,63 80,48 C80,33.6 68.4,22 54,22 Z"/>
+
+    <!-- 中心白點（鏤空效果用紫色圓） -->
+    <path
+        android:fillColor="#FF6200EE"
+        android:pathData="M54,40 C49.6,40 46,43.6 46,48 C46,52.4 49.6,56 54,56 C58.4,56 62,52.4 62,48 C62,43.6 58.4,40 54,40 Z"/>
+
+</vector>

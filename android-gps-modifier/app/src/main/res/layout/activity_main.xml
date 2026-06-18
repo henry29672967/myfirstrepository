@@ -7,7 +7,11 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <!-- 地圖：上半部 (50% 螢幕高度) -->
+    <!--
+        地圖：top→parent top，bottom→card top，左右撐滿。
+        高度 0dp = 填滿上下約束之間的空間。
+        移除 constraintHeight_percent，讓 card 決定底部邊界。
+    -->
     <fragment
         android:id="@+id/map_fragment"
         android:name="com.google.android.gms.maps.SupportMapFragment"
@@ -16,11 +20,9 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@id/card_panel"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintVertical_bias="0"
-        app:layout_constraintHeight_percent="0.50"/>
+        app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- 底部控制面板 -->
+    <!-- 底部控制面板：高度 wrap_content，釘在螢幕底部 -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/card_panel"
         android:layout_width="0dp"
@@ -33,7 +35,8 @@
 
         <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:fillViewport="false">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -41,20 +44,20 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <!-- 標題列 -->
+                <!-- 標題 + 狀態 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:layout_marginBottom="12dp">
+                    android:layout_marginBottom="8dp">
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="GPS 座標修改器"
-                        android:textSize="18sp"
+                        android:textSize="16sp"
                         android:textStyle="bold"
                         android:textColor="@color/black"/>
 
@@ -68,12 +71,27 @@
 
                 </LinearLayout>
 
-                <!-- 緯度 / 經度輸入 -->
+                <!-- 快速地標選點 -->
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none"
+                    android:layout_marginBottom="8dp">
+
+                    <LinearLayout
+                        android:id="@+id/ll_presets"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"/>
+
+                </HorizontalScrollView>
+
+                <!-- 緯度 / 經度 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginBottom="8dp">
+                    android:layout_marginBottom="6dp">
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="0dp"
@@ -116,7 +134,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginBottom="12dp">
+                    android:layout_marginBottom="10dp">
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="0dp"
@@ -172,19 +190,19 @@
 
                 </LinearLayout>
 
-                <!-- 主操作按鈕列 -->
+                <!-- 操作按鈕列 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginBottom="8dp">
+                    android:layout_marginBottom="4dp">
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_apply"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:layout_marginEnd="4dp"
+                        android:layout_marginEnd="3dp"
                         android:text="定位"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
 
@@ -193,8 +211,8 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:layout_marginStart="4dp"
-                        android:layout_marginEnd="4dp"
+                        android:layout_marginStart="3dp"
+                        android:layout_marginEnd="3dp"
                         android:text="開始"
                         app:backgroundTint="@color/green_active"/>
 
@@ -203,8 +221,8 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:layout_marginStart="4dp"
-                        android:layout_marginEnd="4dp"
+                        android:layout_marginStart="3dp"
+                        android:layout_marginEnd="3dp"
                         android:text="更新"
                         android:enabled="false"
                         app:backgroundTint="@color/blue_update"/>
@@ -214,7 +232,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:layout_marginStart="4dp"
+                        android:layout_marginStart="3dp"
                         android:text="停止"
                         android:enabled="false"
                         app:backgroundTint="@color/red_stop"/>
@@ -228,7 +246,7 @@
                     android:layout_height="wrap_content"
                     android:text="▶ 前往「開發者選項」設定模擬位置 App"
                     style="@style/Widget.MaterialComponents.Button.TextButton"
-                    android:textSize="12sp"/>
+                    android:textSize="11sp"/>
 
             </LinearLayout>
         </ScrollView>
