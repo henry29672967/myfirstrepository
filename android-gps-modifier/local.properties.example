@@ -1,0 +1,4 @@
+# 在這裡填入你的 Google Maps API Key
+# 取得方式：https://console.cloud.google.com → APIs & Services → Credentials
+# 需啟用的 API：Maps SDK for Android
+MAPS_API_KEY=在此貼上你的_API_KEY
